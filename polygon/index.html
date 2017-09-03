@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<style type="text/css">
+    body { border: 2px solid black; }
+</style>
+<script type="text/javascript">
+function rgb(r, g, b) {
+  return "rgb(" +
+    Math.round(r * 255.0) + "," +
+    Math.round(g * 255.0) + "," +
+    Math.round(b * 255.0) + ")";
+}
+
+function fillStyle(idx, N) {
+  var h = 1.0 * idx / N;
+  var s = 0.8;
+  var v = 0.9;
+  
+  var i = Math.floor(h * 6);
+  var f = h * 6 - i;
+  var p = v * (1 - s);
+  var q = v * (1 - f * s);
+  var t = v * (1 - (1 - f) * s);
+  switch (i % 6) {
+    case 0: return rgb(v, t, p);
+    case 1: return rgb(q, v, p);
+    case 2: return rgb(p, v, t);
+    case 3: return rgb(p, q, v);
+    case 4: return rgb(t, p, v);
+    case 5: return rgb(v, p, q);
+  }
+}
+  
+class Point {
+  constructor(x, y) {
+    if (arguments.length === 1) {
+      y = x.y;
+      x = x.x;
+    }
+    this.x = x;
+    this.y = y;
+  }
+
+  add(x, y) {
+    if (arguments.length === 1) {
+      y = x.y;
+      x = x.x;
+    }
+    return new Point(this.x + x, this.y + y);
+  }
+  
+  scale(f) {
+    return new Point(this.x * f, this.y * f);
+  }
+  
+  subtract(x, y) {
+    if (arguments.length === 1) {
+      y = x.y;
+      x = x.x;
+    }
+    return new Point(this.x - x, this.y - y);
+  }
+  moveTo(ctx) {
+    ctx.moveTo(this.x, this.y);
+  }
+  lineTo(ctx) {
+    ctx.lineTo(this.x, this.y);
+  }
+}
+
+CENTER = new Point(400.0, 400.0);
+RADIUS = 330.0;
+
+function draw(N, focusOne) {
+  var canvas = document.getElementById("polygon");
+  var ctx = canvas.getContext("2d");
+
+  /* Make an array of N points, evenly spaced on a circle with
+     radius 330.0, center (400.0, 400.0). */
+  var points = new Array(N);
+  for (var i = 0; i < points.length; i++) {
+    var angle = (- 0.5 - 2.0 * i / N) * Math.PI;
+    points[i] = CENTER.add(RADIUS * Math.cos(angle), RADIUS * Math.sin(angle));
+  }
+
+  ctx.clearRect(0, 0, 800, 800);
+
+  /* Label the N vertices */
+  ctx.textAlign = "center";
+  ctx.font = "18px sans";
+  ctx.fillStyle = "black";
+  for (var i = 0; i < points.length; i++) {
+    var textPosition = points[i].subtract(CENTER).scale(350.0 / 330.0).add(CENTER);
+    var pointNumber = "" + (1 + (points.length - i) % points.length);
+    ctx.fillText(pointNumber, textPosition.x, textPosition.y);
+  }
+
+  if (N % 2 != 0) {
+    /* Shade the N triangles with N different hues */
+    for (var i = 1; i <= points.length; i++) {
+      ctx.beginPath();
+      CENTER.moveTo(ctx);
+      points[i-1].add(points[i % points.length]).scale(0.5).lineTo(ctx);
+      points[i % points.length].lineTo(ctx);
+      points[i % points.length].add(points[(i + 1) % points.length]).scale(0.5).lineTo(ctx);
+      ctx.closePath();
+      ctx.fillStyle = fillStyle(i, points.length);
+      ctx.fill();
+    }
+  } else {
+    /* Shade N quadralaterals with N different hues */
+    for (var i = 1; i <= points.length; i++) {
+      ctx.beginPath();
+      CENTER.moveTo(ctx);
+      points[i - 1].lineTo(ctx);
+      points[i % points.length].lineTo(ctx);
+      ctx.closePath();
+      ctx.fillStyle = fillStyle(i, points.length);
+      ctx.fill();
+    }
+  }
+  
+  if (focusOne) {
+    var originalCompositingOp = ctx.globalCompositingOperation;
+    ctx.globalCompositingOperation = "lighter";
+    ctx.beginPath();
+    CENTER.moveTo(ctx);
+    for (var i = 0; i < points.length; i++) {
+      points[i].lineTo(ctx);
+    }
+    ctx.closePath();
+    ctx.fillStyle = "rgba(220, 220, 220, 0.9)";
+    ctx.fill();
+    ctx.globalCompositingOperation = originalCompositingOp;
+  }
+
+
+  /* Draw the N(N-1)/2 line segments */
+  ctx.beginPath();
+  for (var i = 0; i < points.length; i++) {
+    for (var j = i + 1; j < points.length; j++) {
+      points[i].moveTo(ctx);
+      points[j].lineTo(ctx);
+    }
+  }
+  ctx.stroke();
+}
+  
+function setup() {
+  var text = document.getElementById("verticesText");
+  var slider = document.getElementById("verticesRange");
+  var cb = document.getElementById("focusCb");
+
+  text.addEventListener("change", function() { refresh(text.value); }, false);
+  slider.addEventListener("change", function() { refresh(slider.value); }, false);
+  cb.addEventListener("change", function() { refresh(slider.value); }, false);
+  refresh(text.value);
+}
+
+function refresh(s) {
+  var v = parseInt(s);
+  document.getElementById("verticesText").value = v;
+  document.getElementById("verticesRange").value = v;
+  draw(v, document.getElementById("focusCb").checked);
+}
+</script>
+</head>
+<body onload="setup()">
+<canvas width="800" height="800" id="polygon">
+</canvas>
+<div>
+Number of vertices:
+  <input type="text" id="verticesText" value="8" />
+  <input type="range" id="verticesRange" min="3" value="3" />
+  <input type="checkbox" id="focusCb" checked="checked" />
+  <label for="focusCb">1/N Focus</label>
+</div>
+</body>
+</html>
