@@ -3,9 +3,6 @@
 <head>
 <meta charset="utf-8">
 <title>Drawing regular N-gons</title>
-<style type="text/css">
-    body { border: 2px solid black; }
-</style>
 <script type="text/javascript">
 function rgb(r, g, b) {
   return "rgb(" +
@@ -71,10 +68,11 @@ class Point {
   }
 }
 
-CENTER = new Point(400.0, 400.0);
-RADIUS = 330.0;
+CENTER = new Point(800.0, 800.0);
+RADIUS = 680.0;
+TEXT_DELTA_FRACTION = 1.1
 
-function draw(N, focusOne) {
+function draw(N, focusOne, colors) {
   var canvas = document.getElementById("polygon");
   var ctx = canvas.getContext("2d");
 
@@ -82,23 +80,23 @@ function draw(N, focusOne) {
      radius 330.0, center (400.0, 400.0). */
   var points = new Array(N);
   for (var i = 0; i < points.length; i++) {
-    var angle = (- 0.5 - 2.0 * i / N) * Math.PI;
+    var angle = (- 0.5 - 2.0 * (i + 0.5) / N) * Math.PI;
     points[i] = CENTER.add(RADIUS * Math.cos(angle), RADIUS * Math.sin(angle));
   }
 
-  ctx.clearRect(0, 0, 800, 800);
+  ctx.clearRect(0, 0, CENTER.x * 2, CENTER.y * 2);
 
   /* Label the N vertices */
   ctx.textAlign = "center";
   ctx.font = "18px sans";
   ctx.fillStyle = "black";
   for (var i = 0; i < points.length; i++) {
-    var textPosition = points[i].subtract(CENTER).scale(350.0 / 330.0).add(CENTER);
+    var textPosition = points[i].subtract(CENTER).scale(TEXT_DELTA_FRACTION).add(CENTER);
     var pointNumber = "" + (1 + (points.length - i) % points.length);
     ctx.fillText(pointNumber, textPosition.x, textPosition.y);
   }
 
-  if (N % 2 != 0) {
+  if (colors == "vertex") {
     /* Shade the N triangles with N different hues */
     for (var i = 1; i <= points.length; i++) {
       ctx.beginPath();
@@ -110,7 +108,7 @@ function draw(N, focusOne) {
       ctx.fillStyle = fillStyle(i, points.length);
       ctx.fill();
     }
-  } else {
+  } else if (colors == "edge") {
     /* Shade N quadralaterals with N different hues */
     for (var i = 1; i <= points.length; i++) {
       ctx.beginPath();
@@ -123,21 +121,6 @@ function draw(N, focusOne) {
     }
   }
   
-  if (focusOne) {
-    var originalCompositingOp = ctx.globalCompositingOperation;
-    ctx.globalCompositingOperation = "lighter";
-    ctx.beginPath();
-    CENTER.moveTo(ctx);
-    for (var i = 0; i < points.length; i++) {
-      points[i].lineTo(ctx);
-    }
-    ctx.closePath();
-    ctx.fillStyle = "rgba(220, 220, 220, 0.9)";
-    ctx.fill();
-    ctx.globalCompositingOperation = originalCompositingOp;
-  }
-
-
   /* Draw the N(N-1)/2 line segments */
   ctx.beginPath();
   for (var i = 0; i < points.length; i++) {
@@ -147,6 +130,28 @@ function draw(N, focusOne) {
     }
   }
   ctx.stroke();
+
+  if (focusOne) {
+    var originalCompositingOp = ctx.globalCompositingOperation;
+    ctx.globalCompositingOperation = "lighter";
+    ctx.beginPath();
+    CENTER.moveTo(ctx);
+    if (colors == "vertex") {
+      for (var i = 1; i < points.length; i++) {
+      points[(i-1) % points.length].add(points[i]).scale(0.5).lineTo(ctx);
+      points[i].lineTo(ctx);
+      points[i].add(points[(i + 1) % points.length]).scale(0.5).lineTo(ctx);
+      }
+    } else {
+      for (var i = 0; i < points.length; i++) {
+        points[i].lineTo(ctx);
+      }
+    }
+    ctx.closePath();
+    ctx.fillStyle = "rgba(220, 220, 220, 0.9)";
+    ctx.fill();
+    ctx.globalCompositingOperation = originalCompositingOp;
+  }
 }
   
 function setup() {
@@ -157,6 +162,9 @@ function setup() {
   text.addEventListener("change", function() { refresh(text.value); }, false);
   slider.addEventListener("change", function() { refresh(slider.value); }, false);
   cb.addEventListener("change", function() { refresh(slider.value); }, false);
+  for (var e of document.getElementsByName("colors")) {
+    e.addEventListener("change", function() { refresh(slider.value); }, false);
+  }
   refresh(text.value);
 }
 
@@ -164,12 +172,19 @@ function refresh(s) {
   var v = parseInt(s);
   document.getElementById("verticesText").value = v;
   document.getElementById("verticesRange").value = v;
-  draw(v, document.getElementById("focusCb").checked);
+  var colors = "edge";
+  for (var e of document.getElementsByName("colors")) {
+    if (e.checked) {
+      colors = e.value;
+    }
+  }
+  
+  draw(v, document.getElementById("focusCb").checked, colors);
 }
 </script>
 </head>
 <body onload="setup()">
-<canvas width="800" height="800" id="polygon">
+<canvas width="1600" height="1600" id="polygon">
 </canvas>
 <div>
 Number of vertices:
@@ -177,6 +192,14 @@ Number of vertices:
   <input type="range" id="verticesRange" min="3" value="3" />
   <input type="checkbox" id="focusCb" checked="checked" />
   <label for="focusCb">1/N Focus</label>
+  <fieldset>
+    <input type="radio" id="no-colors-radio" name="colors" value="none">
+    <label for="no-colors-radio">None</label>
+    <input type="radio" id="edge-colors-radio" name="colors" value="edge" checked="true">
+    <label for="edge-colors-radio">By edge</label>
+    <input type="radio" id="vertex-colors-radio" name="colors" value="vertex">
+    <label for="vertex-colors-radio">By vertex</label>
+  </fieldset>
 </div>
 </body>
 </html>
