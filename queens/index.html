@@ -1,5 +1,7 @@
 <html>
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 <script>
   
 function hasQueen(cell) {
@@ -8,24 +10,33 @@ function hasQueen(cell) {
   return(trimmed != "");
 }
 
-function updateStyles() {
+function getBoard() {
   var board = []
-  var attacked = []
   $(".board table tbody").find('tr').each(function (rowIndex, row) {
     var cols = [];
-    var attacked_cols = [];
     $(this).find('td.sq').each(function (colIndex, cell) {
-      console.log("updateStyles(): rowIndex = " + rowIndex + ", colIndex = " + colIndex + ", hasQueen ==> " + hasQueen(cell));
       cols.push(hasQueen(cell));
-      attacked_cols.push(0);
     });
     board.push(cols);
-    attacked.push(attacked_cols);
   });
+  return board;
+}
 
-  // Now compute attacked
+function updateStyles() {
+  var board = getBoard();
+  var attacked = []
+
+  // Now make empty 'attacked'
   for (var i = 0; i < board.length; i++) {
     row = board[i];
+    attacked_row = [];
+    for (var j = 0; j < row.length; j++) {
+      attacked_row.push(0);
+    }
+    attacked.push(attacked_row);
+  }
+  // ... and compute
+  for (var i = 0; i < board.length; i++) {
     for (var j = 0; j < row.length; j++) {
       if (board[i][j]) {
         for (var ii = 0; ii < i; ii++) attacked[ii][j] = true;
@@ -115,8 +126,10 @@ function getBoardSize() {
   return 8;
 };
 
-function makeTable() {
-  var size = getBoardSize();
+function makeTable(size) {
+  oldBoard = getBoard();
+  if (size == oldBoard.length) return;
+
   var html = '<table cellspacing="0">\n';
   // Header: row, with: empty, a, b, c, ..., <letter n>, empty
   html += "<thead>\n";
@@ -132,8 +145,13 @@ function makeTable() {
   for (var i = 0; i < size; i++) {
     html += "  <tr>";
     html += '<td class="left">' + (size - i) + "</td>";
-    for (var j = 1; j <= size; j++) {
-      html += '<td class="sq"> </td>';
+    for (var j = 0; j < size; j++) {
+      if (i < oldBoard.length && j < oldBoard[i].length && oldBoard[i][j]) {
+        content = "♛";
+      } else {
+        content = " ";
+      }
+      html += '<td class="sq">' + content + "</td>";
     }
     html += '<td class="right">' + (size - i) + "</td>";
     html += "</tr>\n";
@@ -154,11 +172,8 @@ function makeTable() {
   html += "</tr>\n";
   html += "</tfoot>\n";
   html += "</table>\n";
-  $(".board").append(html);
-}
-  
-$( document ).ready(function() {
-  makeTable();
+  $(".board").html(html);
+
   $(".board td.sq").mouseover(function(e) {
     var row = $(e.target).closest("tbody tr").index();
     var col = $(e.target).closest("td.sq").index();
@@ -181,15 +196,36 @@ $( document ).ready(function() {
       updateStyles();
     }
   });
+}
+  
+$( document ).ready(function() {
+  var size = getBoardSize();
+  makeTable(size);
+  
+  var spinner = $( "#spinner" ).spinner({'max': 20, 'min': 1});
+  spinner.spinner("value", size);
+  $("#setboardsize").on("click", function() {
+    makeTable(spinner.spinner("value"));
+  });
+  $("#reset").on("click", function() {
+    $(".board td.sq").each(function (i, cell) {
+      $(cell).text(" ");
+    });
+    updateStyles();
+  });
 });
 </script>
 <style>
-* { font-family: sans; }
+* { 
+  font-family: sans;
+}
+.board * {
+  font-size: 40px;
+}
 .board td {
   width: 64px;
   height: 64px;
   text-align: center;
-  font-size: 40px;
 }
 .board td.black {
   background-color: #88d;
@@ -235,9 +271,30 @@ $( document ).ready(function() {
   color: red;
   background-color: yellow;
 }
-
+.boardsize {
+  border-top: 1px solid black;
+  padding-top: 36px;
+  display: flex;
+  align-items: baseline;
+  align-content: space-around;
+  /*justify-content: center;*/
+  font-size: 24px;
+}
+.boardsize .ui-spinner-input {
+  width: 60px; 
+  text-align: center;
+  font-size: 16px;
+}
 </style>
 <div class="container">
 <div class="board"></div>
 </div>
+<div class="boardsize">
+  <label for="spinner">Board size:</label>
+  <input id="spinner" name="value">
+  <button id="setboardsize">Set</button>
+</div>
+<div class="reset">
+  <button id="reset">Reset</button>
+  </div>
 </html>
