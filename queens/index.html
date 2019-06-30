@@ -1,0 +1,243 @@
+<html>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<script>
+  
+function hasQueen(cell) {
+  var text = $(cell).text();
+  var trimmed = $.trim(text);
+  return(trimmed != "");
+}
+
+function updateStyles() {
+  var board = []
+  var attacked = []
+  $(".board table tbody").find('tr').each(function (rowIndex, row) {
+    var cols = [];
+    var attacked_cols = [];
+    $(this).find('td.sq').each(function (colIndex, cell) {
+      console.log("updateStyles(): rowIndex = " + rowIndex + ", colIndex = " + colIndex + ", hasQueen ==> " + hasQueen(cell));
+      cols.push(hasQueen(cell));
+      attacked_cols.push(0);
+    });
+    board.push(cols);
+    attacked.push(attacked_cols);
+  });
+
+  // Now compute attacked
+  for (var i = 0; i < board.length; i++) {
+    row = board[i];
+    for (var j = 0; j < row.length; j++) {
+      if (board[i][j]) {
+        for (var ii = 0; ii < i; ii++) attacked[ii][j] = true;
+        for (var ii = i + 1; ii < board.length; ii++) attacked[ii][j] = true;
+
+        for (var jj = 0; jj < j; jj++) attacked[i][jj] = 1;
+        for (var jj = j + 1; jj < row.length; jj++) attacked[i][jj] = 1;
+ 
+        for (var ii = i - 1, jj = j - 1; ii >= 0 && jj >= 0; ii--, jj--) attacked[ii][jj] = 1;
+        for (var ii = i + 1, jj = j - 1; ii < board.length && jj >= 0; ii++, jj--) attacked[ii][jj] = 1;
+        for (var ii = i - 1, jj = j + 1; ii >= 0 && jj < row.length; ii--, jj++) attacked[ii][jj] = 1;
+        for (var ii = i + 1, jj = j + 1; ii < board.length && jj < row.length; ii++, jj++) attacked[ii][jj] = 1;
+      }
+    }
+  }
+  var num_occupied = 0;
+  var num_free = 0;
+
+  $(".board table tbody").find('tr').each(function (rowIndex, row) {
+    $(this).find('td.sq').each(function (colIndex, cell) {
+      // console.log("rowIndex = " + rowIndex + ", colIndex = " + colIndex);
+      var black = (((rowIndex + colIndex) % 2) != 0);
+      if (attacked[rowIndex][colIndex]) {
+        if (black) {
+          $(this).removeClass("black").addClass("black-attacked");
+        } else {
+          $(this).addClass("attacked");
+        }
+      } else {
+        if (board[rowIndex][colIndex]) {
+          num_occupied++;
+        } else {
+          num_free++;
+        }
+        if (black) {
+          $(this).removeClass("black-attacked").addClass("black");
+        } else {
+          $(this).removeClass("attacked");
+        }
+      }
+    });
+  });
+  var q = "";
+  var free = ""
+  if (num_occupied == board.length) {
+    q = "Bingo!!";
+    $("#queens").addClass("blink");
+  } else {
+    for (var dammit = num_occupied; dammit < board.length; dammit++) q += "♛";
+    $("#queens").removeClass("blink");
+    free = "Free: " + num_free;
+  }
+  $("#queens").text(q);
+  $("#free").text(free);
+}
+  
+function updateAttackers(rowIndex, colIndex) {
+  var num_attackers = 0;
+  $(".board tbody").find('tr').each(function (i, row) {
+    $(this).find('td.sq').each(function (j, cell) {
+      var rowDiff = rowIndex - i;
+      var colDiff = colIndex - j;
+      var isAttacker = hasQueen(cell) && ((rowDiff != 0 || colDiff != 0) &&
+          (rowDiff == 0 || colDiff == 0 || rowDiff == colDiff || rowDiff == -colDiff));
+      if (isAttacker) {
+        num_attackers++;
+        $(this).addClass("attacker");
+      } else {
+        $(this).removeClass("attacker");
+      }
+    });
+  });
+  return num_attackers;
+}
+
+function getBoardSize() {
+  var params = window.location.search.substring(1).split('&');
+  for (var i = 0; i < params.length; i++) {
+    var nameAndValue = params[i].split('=');
+    if (nameAndValue.length == 2 && nameAndValue[0] == "size") {
+      var size = parseInt(nameAndValue[1]);
+      if (size != NaN && size <= 30 && size > 0) {
+        return size;
+      }
+    }
+  }
+  return 8;
+};
+
+function makeTable() {
+  var size = getBoardSize();
+  var html = '<table cellspacing="0">\n';
+  // Header: row, with: empty, a, b, c, ..., <letter n>, empty
+  html += "<thead>\n";
+  html += "  <tr><td></td>";
+  for (var j = 1; j <= size; j++) {
+    html += '<td class="top">' + String.fromCharCode(96 + j) + "</td>";
+  }
+  html += "</tr>";
+  html += "</thead>\n";
+
+  // Each body row starts and ends with the rank #
+  html += "<tbody>\n";
+  for (var i = 0; i < size; i++) {
+    html += "  <tr>";
+    html += '<td class="left">' + (size - i) + "</td>";
+    for (var j = 1; j <= size; j++) {
+      html += '<td class="sq"> </td>';
+    }
+    html += '<td class="right">' + (size - i) + "</td>";
+    html += "</tr>\n";
+  }
+  html += "</tbody>\n";
+  // Footer: row, with: empty, a, b, c, ..., <letter n>, empty
+  html += "<tfoot>\n";
+  html += "  <tr><td></td>";
+  for (var j = 1; j <= size; j++) {
+    html += '<td class="bottom">' + String.fromCharCode(96 + j) + "</td>";
+  }
+  html += "</tr>\n";
+  html += "  <tr>"
+  html += '<td id="queens" colspan="' + (size + 2) + '"></td>'
+  html += "</tr>\n";
+  html += "  <tr>"
+  html += '<td id="free" colspan="' + (size + 2) + '"></td>'
+  html += "</tr>\n";
+  html += "</tfoot>\n";
+  html += "</table>\n";
+  $(".board").append(html);
+}
+  
+$( document ).ready(function() {
+  makeTable();
+  $(".board td.sq").mouseover(function(e) {
+    var row = $(e.target).closest("tbody tr").index();
+    var col = $(e.target).closest("td.sq").index();
+    // The .index() for col is off by 1 because of the leftmost label column in the table.
+    // In the case of row, its parent is the tbody, and there are no extra rows.
+    if (col > 0) {
+      var cursor = (updateAttackers(row, col - 1) > 0) ? "not-allowed" : "pointer";
+      $(this).css("cursor", cursor);
+    }
+  });
+  updateStyles();
+  $(".board td").click(function(e) {
+    var clickedCell= $(e.target).closest("td");
+    if ($(clickedCell).hasClass("sq") && !$(clickedCell).hasClass("attacked") && !$(clickedCell).hasClass("black-attacked")) {
+      if (hasQueen(clickedCell)) {
+        $(clickedCell).text(" ");
+      } else {
+        $(clickedCell).text("♛");
+      }
+      updateStyles();
+    }
+  });
+});
+</script>
+<style>
+* { font-family: sans; }
+.board td {
+  width: 64px;
+  height: 64px;
+  text-align: center;
+  font-size: 40px;
+}
+.board td.black {
+  background-color: #88d;
+}
+.board td.black-attacked {
+  background-color: #222;
+}
+.board td.attacked {
+  background-color: #888;
+}
+.board td.attacker {
+  color: #844;
+  background-color: #faa;
+}
+.board td.bottom {
+  border-top: 1px solid blue;
+}
+.board td.top {
+  border-bottom: 1px solid blue;
+}
+.board .left {
+  border-right: 1px solid blue;
+}
+.board .right {
+  border-left: 1px solid blue;
+}
+.board .status {
+  margin: 200px;
+  padding: 60px;
+}
+.container {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.0;
+  }
+}
+.blink {
+  animation: blink 1s step-start 0s infinite;
+  color: red;
+  background-color: yellow;
+}
+
+</style>
+<div class="container">
+<div class="board"></div>
+</div>
+</html>
